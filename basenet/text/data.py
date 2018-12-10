@@ -24,6 +24,20 @@ class RaggedDataset(Dataset):
         return len(self.X)
 
 
+class RaggedDatasetWithFlags(Dataset):
+    def __init__(self, X, flags, y):
+        assert len(X) == len(y), 'len(X) != len(y)'
+        self.X = [torch.LongTensor(xx) for xx in X]
+        self.flags = torch.LongTensor(flags)
+        self.y = torch.LongTensor(y)
+
+    def __getitem__(self, idx):
+        return (self.X[idx], self.flags[idx]), self.y[idx]
+
+    def __len__(self):
+        return len(self.X)
+
+
 class SortishSampler(Sampler):
     # adapted from `fastai`
     def __init__(self, data_source, batch_size, batches_per_chunk=50):
@@ -62,3 +76,16 @@ def text_collate_fn(batch, pad_value=1):
     X = torch.stack(X, dim=-1)
     y = torch.LongTensor(y)
     return X, y
+
+
+def text_collate_with_flags_fn(batch, pad_value=1):
+    X, y = zip(*batch)
+    X, X_flags = zip(*X)
+
+    max_len = max([len(xx) for xx in X])
+    X = [F.pad(xx, pad=(max_len - len(xx), 0), value=pad_value).data for xx in X]
+
+    X = torch.stack(X, dim=-1)
+    y = torch.LongTensor(y)
+    X_flags = torch.LongTensor(X_flags)
+    return (X, X_flags), y
